@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#a78bfa">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Horas VIPS">
+<title>Horas VIPS</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0c0c0c; --bg2: #161616; --bg3: #1e1e1e; --bg4: #111;
+  --border: #272727; --border2: #313131;
+  --text: #f0f0f0; --muted: #555; --muted2: #3a3a3a;
+  --accent: #a78bfa; --blue: #60a5fa; --green: #34d399;
+  --yellow: #f59e0b; --red: #ef4444; --orange: #fb923c;
+}
+body { background:var(--bg); color:var(--text); font-family:'Inter','Segoe UI',system-ui,sans-serif; min-height:100vh; padding:20px 14px 60px; max-width:580px; margin:0 auto; -webkit-text-size-adjust:100%; }
+
+/* Header */
+.eyebrow { font-size:10px; letter-spacing:0.2em; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
+.title { font-size:21px; font-weight:700; color:#fff; letter-spacing:-0.02em; margin-bottom:18px; }
+
+/* Tabs */
+.tabs { display:flex; gap:3px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:3px; margin-bottom:18px; }
+.tab { flex:1; padding:9px 6px; border:none; border-radius:7px; background:transparent; color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+.tab.active { background:var(--accent); color:#0a0a0a; }
+.panel { display:none; } .panel.active { display:block; }
+
+/* Settings */
+.settings-wrap { margin-bottom:16px; }
+.settings-toggle { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; cursor:pointer; user-select:none; }
+.settings-toggle-left { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
+.settings-toggle-right { font-size:11px; color:var(--muted2); }
+.settings-body { background:var(--bg2); border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; padding:14px; display:none; }
+.settings-body.open { display:block; }
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.settings-grid.three { grid-template-columns:1fr 1fr 1fr; }
+.sfield label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; display:block; margin-bottom:5px; }
+.sdivider { height:1px; background:var(--border); margin:12px 0; }
+.tope-display { background:var(--bg3); border:1px solid var(--border); border-radius:7px; padding:10px 12px; font-size:13px; color:var(--accent); font-weight:700; text-align:center; }
+.tope-lbl { font-size:9px; color:var(--muted); display:block; margin-bottom:2px; text-transform:uppercase; letter-spacing:0.1em; }
+
+/* Inputs */
+input[type="text"],input[type="number"],input[type="time"] { width:100%; background:#252525; border:1.5px solid var(--border2); border-radius:7px; color:#e8e8e8; padding:10px 11px; font-size:13px; outline:none; -webkit-appearance:none; appearance:none; }
+input::placeholder { color:#4a4a4a; }
+input:focus { border-color:var(--accent); background:#2a2a2a; }
+input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
+
+/* Toggle */
+.toggle-wrap { display:flex; align-items:center; gap:7px; }
+.toggle-label { font-size:11px; color:var(--muted); }
+.toggle { position:relative; width:36px; height:20px; flex:none; }
+.toggle input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track { position:absolute; inset:0; background:var(--bg3); border:1px solid var(--border2); border-radius:99px; cursor:pointer; transition:background 0.2s; }
+.toggle input:checked + .toggle-track { background:var(--accent); border-color:var(--accent); }
+.toggle-track::before { content:''; position:absolute; width:14px; height:14px; left:2px; top:2px; background:#888; border-radius:99px; transition:transform 0.2s,background 0.2s; }
+.toggle input:checked + .toggle-track::before { transform:translateX(16px); background:#fff; }
+
+/* Buttons */
+.btn-primary { background:var(--accent); color:#0a0a0a; border:none; border-radius:7px; padding:11px 16px; font-size:13px; font-weight:700; cursor:pointer; }
+.btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:10px 14px; font-size:13px; cursor:pointer; }
+.btn-tiny { background:var(--bg3); color:#888; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:11px; cursor:pointer; white-space:nowrap; }
+.btn-icon { background:none; border:none; cursor:pointer; opacity:0.35; padding:3px 5px; font-size:14px; line-height:1; }
+.btn-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:12px; padding:0 3px; line-height:1; flex:none; }
+
+/* Week card */
+.week-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; overflow:hidden; }
+.week-header { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; cursor:pointer; user-select:none; }
+.week-header-left { flex:1; min-width:0; }
+.week-num { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px; }
+.week-label { font-size:13px; font-weight:600; color:#ddd; margin-bottom:6px; }
+.week-stats { display:flex; gap:8px; flex-wrap:wrap; font-size:11px; color:var(--muted); }
+.week-stats span b { font-weight:700; }
+.ws-t b { color:#fff; } .ws-c b { color:var(--accent); } .ws-s b { color:var(--orange); } .ws-p b { color:var(--blue); }
+.week-chevron { font-size:10px; color:var(--muted2); padding:4px; flex:none; }
+.week-body { padding:0 14px 14px; }
+.week-sep { height:1px; background:var(--border); margin-bottom:12px; }
+
+/* Day block */
+.day-block { background:var(--bg3); border-radius:8px; padding:10px 12px; margin-bottom:6px; }
+.day-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.day-name { font-size:13px; font-weight:700; color:#ccc; }
+.day-total { font-size:13px; color:var(--accent); font-weight:700; }
+.day-actions { display:flex; gap:2px; align-items:center; }
+.franja-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:12px; }
+.franja-range { color:#888; flex:1; }
+.franja-h { color:var(--accent); font-weight:600; min-width:32px; text-align:right; }
+.franja-break { font-size:10px; color:var(--muted2); margin-left:2px; }
+
+/* Forms */
+.add-franja-form { background:var(--bg4); border:1px dashed var(--border); border-radius:7px; padding:10px; margin-top:8px; }
+.add-franja-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; display:block; }
+.franja-inputs { display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap; }
+.time-wrap { flex:1; min-width:90px; }
+.time-wrap label { font-size:9px; color:var(--muted); display:block; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.08em; }
+.hours-preview { font-size:13px; color:var(--accent); font-weight:700; min-width:32px; text-align:center; padding-bottom:10px; }
+.franja-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:8px; flex-wrap:wrap; gap:6px; }
+.add-day-form { background:var(--bg4); border:1px dashed var(--border2); border-radius:7px; padding:10px; margin-top:6px; }
+.add-day-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; display:block; }
+.day-btns { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; }
+.day-btn { background:var(--bg3); border:1px solid var(--border2); border-radius:5px; color:#888; font-size:12px; padding:5px 10px; cursor:pointer; }
+.day-btn.sel { background:var(--accent); color:#0a0a0a; border-color:var(--accent); font-weight:700; }
+.add-day-bottom { display:flex; gap:6px; margin-top:8px; }
+.add-week-btn { width:100%; padding:12px; background:transparent; border:1px dashed var(--border2); border-radius:10px; color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; }
+
+/* Resumen stats */
+.stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+.stats-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+.stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px 8px; text-align:center; }
+.stat-card.highlight { border-color:var(--accent); }
+.stat-value { font-size:17px; font-weight:700; color:#fff; }
+.stat-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-top:2px; }
+.stat-sub { font-size:10px; color:var(--muted2); margin-top:2px; }
+.stat-value.orange { color:var(--orange); }
+.stat-value.blue { color:var(--blue); }
+.stat-value.green { color:var(--green); }
+.stat-value.accent { color:var(--accent); }
+
+/* Progress */
+.progress-wrap { margin-bottom:20px; }
+.progress-header { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:5px; }
+.progress-val { font-weight:700; }
+.progress-bg { background:var(--bg2); border-radius:99px; height:8px; overflow:hidden; border:1px solid var(--border); }
+.progress-fill { height:100%; border-radius:99px; transition:width 0.4s ease,background 0.3s ease; }
+.progress-note { margin-top:5px; font-size:11px; font-weight:600; min-height:15px; }
+
+/* Payslip simulator */
+.payslip { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:16px; }
+.payslip-title { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:14px; }
+.payslip-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.payslip-row:last-child { border-bottom:none; }
+.payslip-row.total { font-weight:700; font-size:14px; padding-top:10px; }
+.payslip-row.net { font-weight:700; font-size:15px; color:var(--green); padding-top:10px; }
+.payslip-row.already { color:var(--orange); }
+.payslip-row.pending { color:var(--green); font-weight:700; }
+.payslip-label { color:var(--muted); }
+.payslip-row.total .payslip-label { color:#ddd; }
+.payslip-row.net .payslip-label { color:var(--green); }
+.payslip-row.already .payslip-label { color:var(--orange); }
+.payslip-row.pending .payslip-label { color:var(--green); }
+.payslip-val { font-weight:600; }
+.payslip-val.neg { color:var(--red); }
+.payslip-divider { height:1px; background:var(--border2); margin:4px 0; }
+.payslip-section { font-size:10px; color:var(--muted2); text-transform:uppercase; letter-spacing:0.1em; padding:8px 0 4px; }
+
+/* Res week */
+.res-week { background:var(--bg2); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:6px; }
+.res-week-label { font-size:12px; font-weight:600; color:#ccc; margin-bottom:6px; }
+.res-week-data { display:flex; gap:12px; font-size:12px; color:var(--muted); flex-wrap:wrap; }
+.res-week-data b { font-weight:700; }
+.rw-t b { color:#fff; } .rw-o b { color:var(--blue); } .rw-c b { color:var(--accent); }
+.rw-s b { color:var(--orange); } .rw-p b { color:var(--blue); } .rw-k b { color:var(--green); }
+
+.section-title { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin:20px 0 10px; }
+.empty { text-align:center; padding:40px 20px; color:var(--muted2); font-size:13px; }
+.footer { margin-top:24px; font-size:10px; color:#1c1c1c; text-align:center; letter-spacing:0.05em; }
+</style>
+</head>
+<body>
+
+<div class="eyebrow">VIPS · Sigla S.A.</div>
+<div class="title">Registro de horas</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('turnos',this)">Turnos</button>
+  <button class="tab" onclick="showTab('resumen',this)">Resumen</button>
+</div>
+
+<!-- ═══ TURNOS ═══ -->
+<div id="panel-turnos" class="panel active">
+  <div class="settings-wrap">
+    <div class="settings-toggle" onclick="toggleSettings()">
+      <span class="settings-toggle-left">⚙ Configuración del contrato</span>
+      <span class="settings-toggle-right" id="cfg-summary">cargando...</span>
+    </div>
+    <div class="settings-body" id="settings-body">
+      <div class="settings-grid">
+        <div class="sfield">
+          <label>Horas base / semana</label>
+          <input type="number" id="cfg-base" value="16" min="1" max="40" step="0.5" oninput="onCfgChange()">
+        </div>
+        <div class="sfield">
+          <label>% complementarias máx.</label>
+          <input type="number" id="cfg-pct" value="60" min="1" max="100" step="1" oninput="onCfgChange()">
+        </div>
+      </div>
+      <div class="settings-grid three" style="margin-top:8px">
+        <div class="sfield">
+          <span class="tope-lbl">Tope mensual</span>
+          <div class="tope-display" id="cfg-tope">36h</div>
+        </div>
+        <div class="sfield">
+          <label>€/h pago semanal</label>
+          <input type="number" id="cfg-sem" value="6" min="0" max="20" step="0.01" oninput="onCfgChange()">
+        </div>
+        <div class="sfield">
+          <label>% IRPF retención</label>
+          <input type="number" id="cfg-irpf" value="0" min="0" max="45" step="0.5" oninput="onCfgChange()">
+        </div>
+      </div>
+      <div class="sdivider"></div>
+      <div class="settings-grid">
+        <div class="sfield">
+          <label>Sueldo base / mes (€)</label>
+          <input type="number" id="cfg-salario" value="577.47" min="0" step="0.01" oninput="onCfgChange()">
+        </div>
+        <div class="sfield">
+          <label>€/h total complementarias</label>
+          <input type="number" id="cfg-precio" value="9.6245" min="0" step="0.0001" oninput="onCfgChange()">
+        </div>
+      </div>
+      <div class="sdivider"></div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">💾 Copia de seguridad</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" style="flex:1;padding:10px;font-size:12px" onclick="exportData()">⬇ Exportar datos</button>
+        <button class="btn-ghost" style="flex:1;padding:10px;font-size:12px" onclick="importData()">⬆ Importar datos</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.5">Exporta regularmente para no perder tus registros. El archivo JSON se guarda en Descargas.</div>
+    </div>
+  </div>
+  <div id="weeks-list"></div>
+  <button class="add-week-btn" onclick="addWeek()">+ Añadir semana</button>
+</div>
+
+<!-- ═══ RESUMEN ═══ -->
+<div id="panel-resumen" class="panel">
+
+  <!-- Stats fila 1: horas -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="r-total">0h</div>
+      <div class="stat-label">Total trabajado</div>
+      <div class="stat-sub" id="r-sems">0 sem.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value accent" id="r-comp">0h</div>
+      <div class="stat-label">Complementarias</div>
+      <div class="stat-sub" id="r-tope-sub">tope: 36h/mes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="r-ord">0h</div>
+      <div class="stat-label">Ordinarias</div>
+      <div class="stat-sub">horas base</div>
+    </div>
+  </div>
+
+  <!-- Stats fila 2: dinero -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value orange" id="r-ya-cobrado">0€</div>
+      <div class="stat-label">Ya cobrado</div>
+      <div class="stat-sub">anticipos semanales</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue" id="r-pendiente">0€</div>
+      <div class="stat-label">Pendiente nómina</div>
+      <div class="stat-sub">comp. restante bruto</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="stat-value green" id="r-neto-mes">0€</div>
+      <div class="stat-label">Neto estimado mes</div>
+      <div class="stat-sub">total a recibir</div>
+    </div>
+  </div>
+
+  <!-- Barra tope -->
+  <div class="progress-wrap">
+    <div class="progress-header">
+      <span>Tope mensual complementarias</span>
+      <span class="progress-val" id="r-pct-txt" style="color:#22c55e">0h / 36h</span>
+    </div>
+    <div class="progress-bg">
+      <div class="progress-fill" id="r-bar" style="width:0%;background:#22c55e"></div>
+    </div>
+    <div class="progress-note" id="r-note"></div>
+  </div>
+
+  <!-- Simulador nómina -->
+  <div class="section-title">Simulador nómina mensual</div>
+  <div class="payslip">
+    <div class="payslip-title">Desglose estimado del mes</div>
+
+    <div class="payslip-section">Devengos (bruto)</div>
+    <div class="payslip-row">
+      <span class="payslip-label">Sueldo base</span>
+      <span class="payslip-val" id="ps-base">577,47€</span>
+    </div>
+    <div class="payslip-row">
+      <span class="payslip-label">Complementarias (bruto total)</span>
+      <span class="payslip-val" id="ps-comp-bruto">0,00€</span>
+    </div>
+    <div class="payslip-row total">
+      <span class="payslip-label">Total bruto mes</span>
+      <span class="payslip-val" id="ps-bruto-total">577,47€</span>
+    </div>
+
+    <div class="payslip-section">Deducciones</div>
+    <div class="payslip-row">
+      <span class="payslip-label">Seguridad Social (6,48%)</span>
+      <span class="payslip-val neg" id="ps-ss">-0,00€</span>
+    </div>
+    <div class="payslip-row">
+      <span class="payslip-label">IRPF (<span id="ps-irpf-pct">0</span>%)</span>
+      <span class="payslip-val neg" id="ps-irpf">-0,00€</span>
+    </div>
+    <div class="payslip-row total">
+      <span class="payslip-label">Total neto mes</span>
+      <span class="payslip-val" id="ps-neto">0,00€</span>
+    </div>
+
+    <div class="payslip-divider"></div>
+    <div class="payslip-section">Liquidación</div>
+    <div class="payslip-row already">
+      <span class="payslip-label">Ya cobrado (anticipos semanales)</span>
+      <span class="payslip-val" id="ps-ya">-0,00€</span>
+    </div>
+    <div class="payslip-row pending">
+      <span class="payslip-label">A recibir en nómina</span>
+      <span class="payslip-val" id="ps-recibir">0,00€</span>
+    </div>
+  </div>
+
+  <!-- Semana a semana -->
+  <div class="section-title">Semana a semana</div>
+  <div id="res-weeks"></div>
+  <div class="empty" id="res-empty" style="display:none">Añade turnos desde la pestaña Turnos.</div>
+
+</div>
+
+<div class="footer">Contrato 00167694 · 01.07.2026 – 04.10.2026</div>
+
+<script>
+// ══ CONSTANTS ══
+const SS_PCT  = 0.0648;
+const MONTHS  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DAYS_SH = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const CONTRACT_START = new Date(2026,6,1);
+const K_W = 'vips_w2', K_C = 'vips_cfg2';
+
+// ══ PERSISTENCE ══
+function lW(){ try{ return JSON.parse(localStorage.getItem(K_W))||[]; }catch{ return []; } }
+function sW(d){ localStorage.setItem(K_W,JSON.stringify(d)); }
+function lC(){ try{ return JSON.parse(localStorage.getItem(K_C))||{base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245}; }catch{ return {base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245}; } }
+function sC(d){ localStorage.setItem(K_C,JSON.stringify(d)); }
+
+function onCfgChange(){
+  const c={
+    base:   parseFloat(document.getElementById('cfg-base').value)||16,
+    pct:    parseFloat(document.getElementById('cfg-pct').value)||60,
+    sem:    parseFloat(document.getElementById('cfg-sem').value)||6,
+    irpf:   parseFloat(document.getElementById('cfg-irpf').value)||0,
+    salario:parseFloat(document.getElementById('cfg-salario').value)||577.47,
+    precio: parseFloat(document.getElementById('cfg-precio').value)||9.6245
+  };
+  sC(c);
+  updateCfgDisplay(c);
+  renderAll();
+}
+
+function updateCfgDisplay(c){
+  const tope = c.base * 3.75 * (c.pct/100);
+  document.getElementById('cfg-tope').textContent = fH(tope);
+  document.getElementById('cfg-summary').textContent =
+    `${c.base}h base · ${c.pct}% · tope ${fH(tope)}/mes · ${c.sem}€/h sem · IRPF ${c.irpf}%`;
+}
+
+function loadCfgToForm(){
+  const c = lC();
+  document.getElementById('cfg-base').value    = c.base;
+  document.getElementById('cfg-pct').value     = c.pct;
+  document.getElementById('cfg-sem').value     = c.sem;
+  document.getElementById('cfg-irpf').value    = c.irpf;
+  document.getElementById('cfg-salario').value = c.salario;
+  document.getElementById('cfg-precio').value  = c.precio;
+  updateCfgDisplay(c);
+}
+
+// ══ CALCULATIONS ══
+function tM(t){ if(!t||!t.includes(':'))return null; const[h,m]=t.split(':').map(Number); return isNaN(h)||isNaN(m)?null:h*60+m; }
+function fH(h){ const r=Math.round(h*10)/10; return r%1===0?r+'h':r.toFixed(1).replace('.',',')+('h'); }
+function fE(n){ return n.toFixed(2).replace('.',',')+('€'); }
+function fEn(n){ return (n<0?'-':'')+Math.abs(n).toFixed(2).replace('.',',')+('€'); }
+
+function franjaH(f){
+  const s=tM(f.start),e=tM(f.end);
+  if(s===null||e===null)return 0;
+  let m=e-s; if(m<=0)m+=1440;
+  if(f.descanso)m-=30;
+  return Math.max(0,m/60);
+}
+
+function prevH(start,end,desc){
+  const s=tM(start),e=tM(end);
+  if(s===null||e===null||!start||!end)return null;
+  let m=e-s; if(m<=0)m+=1440;
+  if(desc)m-=30;
+  return Math.max(0,m/60);
+}
+
+function dayH(day){ return day.franjas.reduce((s,f)=>s+franjaH(f),0); }
+function weekH(week){ return week.days.reduce((s,d)=>s+dayH(d),0); }
+function weekComp(week,base){ return Math.max(0,weekH(week)-base); }
+function topeMensual(base,pct){ return base*3.75*(pct/100); }
+
+// ══ WEEK LABELS ══
+function addD(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function fDate(d){ return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
+function weekRange(idx){
+  const s=new Date(CONTRACT_START), dow=s.getDay();
+  if(idx===0){ return {s,e:addD(s,dow===0?0:7-dow)}; }
+  const w2s=addD(s,dow===0?1:8-dow);
+  const ws=addD(w2s,(idx-1)*7);
+  return {s:ws,e:addD(ws,6)};
+}
+function weekLabel(idx){
+  const{s,e}=weekRange(idx), n=idx+1;
+  return s.getMonth()===e.getMonth()
+    ?`Semana ${n} · ${s.getDate()}–${e.getDate()} ${MONTHS[e.getMonth()]}`
+    :`Semana ${n} · ${fDate(s)} – ${fDate(e)}`;
+}
+
+// ══ STATE ══
+let expandedWeeks=new Set(), addingDayTo=null, addingFranjaTo=null, selDay='', settOpen=false, editingDay=null;
+
+// ══ TABS ══
+function showTab(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='resumen')renderResumen();
+}
+function toggleSettings(){ settOpen=!settOpen; document.getElementById('settings-body').classList.toggle('open',settOpen); }
+
+// ══ CRUD ══
+function addWeek(){ const ws=lW(),id=Date.now(); ws.push({id,days:[]}); sW(ws); expandedWeeks.add(id); addingDayTo=id; renderTurnos(); }
+function deleteWeek(id){ if(!confirm('¿Eliminar esta semana?'))return; sW(lW().filter(w=>w.id!==id)); expandedWeeks.delete(id); renderTurnos(); }
+function toggleWeek(id){ expandedWeeks.has(id)?expandedWeeks.delete(id):expandedWeeks.add(id); renderTurnos(); }
+
+function addDay(wid){
+  const dname=document.getElementById('nd-'+wid)?.value?.trim()||selDay;
+  const start=document.getElementById('ns-'+wid)?.value;
+  const end=document.getElementById('ne-'+wid)?.value;
+  const desc=document.getElementById('nd2-'+wid)?.checked||false;
+  if(!dname){alert('Escribe o selecciona el día.');return;}
+  if(!start||!end){alert('Introduce hora de inicio y fin.');return;}
+  const ws=lW(),w=ws.find(x=>x.id===wid);
+  if(!w)return;
+  w.days.push({id:Date.now(),name:dname,franjas:[{start,end,descanso:desc}]});
+  sW(ws); addingDayTo=null; selDay=''; renderTurnos();
+}
+function deleteDay(wid,did){ const ws=lW(),w=ws.find(x=>x.id===wid); if(!w)return; w.days=w.days.filter(d=>d.id!==did); sW(ws); renderTurnos(); }
+
+function addFranja(wid,did){
+  const start=document.getElementById(`fs-${wid}-${did}`)?.value;
+  const end=document.getElementById(`fe-${wid}-${did}`)?.value;
+  const desc=document.getElementById(`fd-${wid}-${did}`)?.checked||false;
+  if(!start||!end){alert('Introduce hora de inicio y fin.');return;}
+  const ws=lW(),day=ws.find(w=>w.id===wid)?.days?.find(d=>d.id===did);
+  if(!day)return;
+  day.franjas.push({start,end,descanso:desc});
+  sW(ws); addingFranjaTo=null; renderTurnos();
+}
+function deleteFranja(wid,did,fi){
+  const ws=lW(),w=ws.find(x=>x.id===wid),day=w?.days?.find(d=>d.id===did);
+  if(!day)return;
+  day.franjas.splice(fi,1);
+  if(day.franjas.length===0) w.days=w.days.filter(d=>d.id!==did);
+  sW(ws); renderTurnos();
+}
+
+function startEditDay(wid,did){ editingDay={wid,did}; addingFranjaTo=null; renderTurnos(); }
+function cancelEditDay(){ editingDay=null; renderTurnos(); }
+function saveEditDay(wid,did){
+  const ws=lW(),w=ws.find(x=>x.id===wid),day=w?.days?.find(d=>d.id===did);
+  if(!day)return;
+  const newName=document.getElementById(`en-${wid}-${did}`)?.value?.trim();
+  if(!newName){alert('El nombre no puede estar vacío.');return;}
+  day.name=newName;
+  day.franjas.forEach((f,fi)=>{
+    const s=document.getElementById(`es-${wid}-${did}-${fi}`)?.value;
+    const e=document.getElementById(`ee-${wid}-${did}-${fi}`)?.value;
+    const d=document.getElementById(`ed-${wid}-${did}-${fi}`)?.checked||false;
+    if(s)f.start=s; if(e)f.end=e; f.descanso=d;
+  });
+  sW(ws); editingDay=null; renderTurnos();
+}
+function deleteEditFranja(wid,did,fi){
+  const ws=lW(),w=ws.find(x=>x.id===wid),day=w?.days?.find(d=>d.id===did);
+  if(!day)return;
+  day.franjas.splice(fi,1);
+  if(day.franjas.length===0){w.days=w.days.filter(d=>d.id!==did);editingDay=null;}
+  sW(ws); renderTurnos();
+}
+
+// ══ LIVE PREVIEW ══
+function upPrev(pid,sid,eid,did){
+  const el=document.getElementById(pid); if(!el)return;
+  const h=prevH(document.getElementById(sid)?.value,document.getElementById(eid)?.value,document.getElementById(did)?.checked||false);
+  el.textContent=h!==null?fH(h):'–';
+}
+
+// ══ RENDER TURNOS ══
+function renderTurnos(){
+  const weeks=lW(), c=lC(), list=document.getElementById('weeks-list');
+  list.innerHTML='';
+  if(weeks.length===0){ list.innerHTML='<div class="empty">Pulsa "Añadir semana" para empezar.</div>'; return; }
+  weeks.forEach((week,wi)=>{
+    const isExp=expandedWeeks.has(week.id);
+    const total=weekH(week), comp=weekComp(week,c.base);
+    const semCobro=comp*c.sem, pendiente=comp*(c.precio-c.sem);
+    const card=document.createElement('div'); card.className='week-card';
+    let bodyHtml='';
+    if(isExp){
+      let daysHtml='';
+      week.days.forEach(day=>{
+        const dtot=dayH(day);
+        const addF=addingFranjaTo&&addingFranjaTo.wid===week.id&&addingFranjaTo.did===day.id;
+        const franjasHtml=day.franjas.map((f,fi)=>`
+          <div class="franja-item">
+            <span class="franja-range">${f.start}–${f.end}${f.descanso?' <span class="franja-break">-30\' desc.</span>':''}</span>
+            <span class="franja-h">${fH(franjaH(f))}</span>
+            <button class="btn-del" onclick="deleteFranja(${week.id},${day.id},${fi})">✕</button>
+          </div>`).join('');
+        const addFForm=addF?`
+          <div class="add-franja-form">
+            <span class="add-franja-label">+ Nueva franja</span>
+            <div class="franja-inputs">
+              <div class="time-wrap"><label>Inicio</label><input type="time" id="fs-${week.id}-${day.id}" oninput="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','fd-${week.id}-${day.id}')"></div>
+              <div class="time-wrap"><label>Fin</label><input type="time" id="fe-${week.id}-${day.id}" oninput="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','fd-${week.id}-${day.id}')"></div>
+              <span class="hours-preview" id="fp-${week.id}-${day.id}">–</span>
+            </div>
+            <div class="franja-bottom">
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="fd-${week.id}-${day.id}" onchange="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','fd-${week.id}-${day.id}')"><span class="toggle-track"></span></label>
+                <span class="toggle-label">Descontar descanso (30 min)</span>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn-tiny" onclick="addFranja(${week.id},${day.id})">Añadir</button>
+                <button class="btn-ghost" style="padding:6px 10px;font-size:12px" onclick="addingFranjaTo=null;renderTurnos()">✕</button>
+              </div>
+            </div>
+          </div>`:'';
+        const addFBtn=!addF?`<button class="btn-tiny" style="margin-top:8px" onclick="addingFranjaTo={wid:${week.id},did:${day.id}};renderTurnos()">+ Franja</button>`:'';
+        const isEditing=editingDay&&editingDay.wid===week.id&&editingDay.did===day.id;
+        if(isEditing){
+          const franjasEditHtml=day.franjas.map((f,fi)=>`
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;margin-bottom:6px">
+              <div class="franja-inputs">
+                <div class="time-wrap"><label>Inicio</label><input type="time" id="es-${week.id}-${day.id}-${fi}" value="${f.start}"></div>
+                <div class="time-wrap"><label>Fin</label><input type="time" id="ee-${week.id}-${day.id}-${fi}" value="${f.end}"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                <div class="toggle-wrap">
+                  <label class="toggle"><input type="checkbox" id="ed-${week.id}-${day.id}-${fi}" ${f.descanso?'checked':''}><span class="toggle-track"></span></label>
+                  <span class="toggle-label">Descontar descanso (30 min)</span>
+                </div>
+                <button class="btn-del" onclick="deleteEditFranja(${week.id},${day.id},${fi})" title="Eliminar franja">🗑</button>
+              </div>
+            </div>`).join('');
+          daysHtml+=`<div class="day-block">
+            <div style="margin-bottom:10px">
+              <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:5px">Nombre del día</label>
+              <input type="text" id="en-${week.id}-${day.id}" value="${day.name}">
+            </div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Franjas</div>
+            ${franjasEditHtml}
+            <div style="display:flex;gap:6px;margin-top:10px">
+              <button class="btn-primary" style="flex:1;padding:9px" onclick="saveEditDay(${week.id},${day.id})">Guardar</button>
+              <button class="btn-ghost" onclick="cancelEditDay()">Cancelar</button>
+            </div>
+          </div>`;
+        } else {
+          daysHtml+=`<div class="day-block">
+          <div class="day-header">
+            <span class="day-name">${day.name}</span>
+            <div class="day-actions"><span class="day-total">${fH(dtot)}</span><button class="btn-icon" onclick="startEditDay(${week.id},${day.id})" title="Editar">✏️</button><button class="btn-icon" onclick="deleteDay(${week.id},${day.id})">🗑</button></div>
+          </div>
+          ${franjasHtml}${addFForm}${addFBtn}
+        </div>`;
+        }
+      });
+      const addD2=addingDayTo===week.id;
+      const addDayHtml=addD2?`
+        <div class="add-day-form">
+          <span class="add-day-label">+ Añadir día</span>
+          <div class="day-btns">${DAYS_SH.map(d=>`<button class="day-btn${selDay===d?' sel':''}" onclick="selDay='${d}';document.getElementById('nd-${week.id}').value='${d}';renderTurnos()">${d}</button>`).join('')}</div>
+          <input type="text" id="nd-${week.id}" placeholder="Nombre del día" value="${selDay}" style="margin-bottom:10px">
+          <div class="franja-inputs">
+            <div class="time-wrap"><label>Inicio</label><input type="time" id="ns-${week.id}" oninput="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','nd2-${week.id}')"></div>
+            <div class="time-wrap"><label>Fin</label><input type="time" id="ne-${week.id}" oninput="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','nd2-${week.id}')"></div>
+            <span class="hours-preview" id="np-${week.id}">–</span>
+          </div>
+          <div class="franja-bottom">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="nd2-${week.id}" onchange="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','nd2-${week.id}')"><span class="toggle-track"></span></label>
+              <span class="toggle-label">Descontar descanso (30 min)</span>
+            </div>
+          </div>
+          <div class="add-day-bottom">
+            <button class="btn-primary" style="flex:1" onclick="addDay(${week.id})">Guardar día</button>
+            <button class="btn-ghost" onclick="addingDayTo=null;selDay='';renderTurnos()">Cancelar</button>
+          </div>
+        </div>`:`<button class="btn-tiny" style="width:100%;margin-top:4px;padding:9px" onclick="addingDayTo=${week.id};addingFranjaTo=null;selDay='';renderTurnos()">+ Añadir día</button>`;
+      bodyHtml=`<div class="week-sep"></div>${daysHtml}${addDayHtml}`;
+    }
+    card.innerHTML=`
+      <div class="week-header" onclick="toggleWeek(${week.id})">
+        <div class="week-header-left">
+          <div class="week-num">Semana ${wi+1}</div>
+          <div class="week-label">${weekLabel(wi)}</div>
+          <div class="week-stats">
+            <span class="ws-t">Total <b>${fH(total)}</b></span>
+            <span class="ws-c">Comp <b>${fH(comp)}</b></span>
+            <span class="ws-s">Cobro sem <b>${fE(semCobro)}</b></span>
+            <span class="ws-p">Pdte nómina <b>${fE(pendiente)}</b></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button class="btn-icon" onclick="event.stopPropagation();deleteWeek(${week.id})" style="opacity:0.25">🗑</button>
+          <span class="week-chevron">${isExp?'▲':'▼'}</span>
+        </div>
+      </div>
+      ${isExp?`<div class="week-body">${bodyHtml}</div>`:''}`;
+    list.appendChild(card);
+  });
+}
+
+// ══ RENDER RESUMEN ══
+function renderResumen(){
+  const weeks=lW(), c=lC();
+  const tope=topeMensual(c.base,c.pct);
+  let totalH=0,totalComp=0;
+  weeks.forEach(w=>{ totalH+=weekH(w); totalComp+=weekComp(w,c.base); });
+  const totalOrd=totalH-totalComp;
+  const yaCobrado=totalComp*c.sem;
+  const compBrutoTotal=totalComp*c.precio;
+  const pendienteBruto=compBrutoTotal-yaCobrado;
+  const brutomes=c.salario+compBrutoTotal;
+  const descSS=brutomes*SS_PCT;
+  const descIRPF=brutomes*(c.irpf/100);
+  const netoMes=brutomes-descSS-descIRPF;
+  const aRecibir=netoMes-yaCobrado;
+  const pct=tope>0?Math.min((totalComp/tope)*100,100):0;
+  const col=pct>=100?'#ef4444':pct>=75?'#f59e0b':'#22c55e';
+
+  // Stats
+  document.getElementById('r-total').textContent=fH(totalH);
+  document.getElementById('r-sems').textContent=weeks.length+' sem.';
+  document.getElementById('r-comp').textContent=fH(totalComp);
+  document.getElementById('r-tope-sub').textContent='tope: '+fH(tope)+'/mes';
+  document.getElementById('r-ord').textContent=fH(totalOrd);
+  document.getElementById('r-ya-cobrado').textContent=fE(yaCobrado);
+  document.getElementById('r-pendiente').textContent=fE(Math.max(0,pendienteBruto));
+  document.getElementById('r-neto-mes').textContent=fE(Math.max(0,netoMes));
+
+  // Barra
+  document.getElementById('r-bar').style.cssText=`width:${pct}%;background:${col}`;
+  const pte=document.getElementById('r-pct-txt'); pte.style.color=col;
+  pte.textContent=fH(totalComp)+' / '+fH(tope)+' ('+pct.toFixed(0)+'%)';
+  const note=document.getElementById('r-note');
+  if(pct>=100){note.style.color='#ef4444';note.textContent='⚠️ Tope superado — habla con la jefa.';}
+  else if(pct>=75){note.style.color='#f59e0b';note.textContent='Llevas el '+pct.toFixed(0)+'% del tope mensual.';}
+  else{note.textContent='';}
+
+  // Simulador nómina
+  document.getElementById('ps-base').textContent=fE(c.salario);
+  document.getElementById('ps-comp-bruto').textContent=fE(compBrutoTotal);
+  document.getElementById('ps-bruto-total').textContent=fE(brutomes);
+  document.getElementById('ps-ss').textContent='-'+fE(descSS);
+  document.getElementById('ps-irpf-pct').textContent=c.irpf;
+  document.getElementById('ps-irpf').textContent='-'+fE(descIRPF);
+  document.getElementById('ps-neto').textContent=fE(Math.max(0,netoMes));
+  document.getElementById('ps-ya').textContent='-'+fE(yaCobrado);
+  document.getElementById('ps-recibir').textContent=fE(Math.max(0,aRecibir));
+
+  // Semanas
+  const rw=document.getElementById('res-weeks'), re=document.getElementById('res-empty');
+  rw.innerHTML='';
+  if(weeks.length===0){re.style.display='block';return;}
+  re.style.display='none';
+  weeks.forEach((w,wi)=>{
+    const tot=weekH(w),comp=weekComp(w,c.base),ord=tot-comp;
+    const sem=comp*c.sem,pnd=comp*(c.precio-c.sem);
+    const div=document.createElement('div'); div.className='res-week';
+    div.innerHTML=`<div class="res-week-label">${weekLabel(wi)}</div>
+      <div class="res-week-data">
+        <span class="rw-t">Total <b>${fH(tot)}</b></span>
+        <span class="rw-o">Ord <b>${fH(ord)}</b></span>
+        <span class="rw-c">Comp <b>${fH(comp)}</b></span>
+        <span class="rw-s">Cobro sem <b>${fE(sem)}</b></span>
+        <span class="rw-p">Pdte nómina <b>${fE(pnd)}</b></span>
+      </div>`;
+    rw.appendChild(div);
+  });
+}
+
+// ══ RENDER ALL ══
+function renderAll(){ renderTurnos(); if(document.getElementById('panel-resumen').classList.contains('active'))renderResumen(); }
+
+// ══ EXPORT / IMPORT ══
+function exportData(){
+  const data={ version:2, exportDate:new Date().toISOString(), weeks:lW(), config:lC() };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const d=new Date().toISOString().slice(0,10);
+  a.download=`horas-vips-backup-${d}.json`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function importData(){
+  const input=document.createElement('input');
+  input.type='file'; input.accept='.json';
+  input.onchange=e=>{
+    const file=e.target.files[0]; if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(!data.weeks)throw new Error('Formato inválido');
+        if(!confirm(`¿Restaurar backup del ${data.exportDate?.slice(0,10)||'fecha desconocida'}? Se sobreescribirán los datos actuales.`))return;
+        sW(data.weeks);
+        if(data.config)sC(data.config);
+        loadCfgToForm(); renderAll();
+        alert('✅ Datos restaurados correctamente.');
+      }catch{ alert('❌ Error al leer el archivo. Asegúrate de que es un backup válido de esta app.'); }
+    };
+    reader.readAsText(file);
+  };
+  document.body.appendChild(input); input.click(); document.body.removeChild(input);
+}
+
+// ══ PWA MANIFEST (inline) ══
+(function(){
+  const icon = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23a78bfa'/><text y='72' x='50' text-anchor='middle' font-size='58'>⏱</text></svg>`;
+  const manifest={
+    name:'Horas VIPS',short_name:'VIPS Horas',
+    start_url:'.',display:'standalone',
+    background_color:'#0c0c0c',theme_color:'#a78bfa',
+    icons:[{src:icon,sizes:'any',type:'image/svg+xml'}]
+  };
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const link=document.createElement('link');
+  link.rel='manifest'; link.href=URL.createObjectURL(blob);
+  document.head.appendChild(link);
+})();
+
+// ══ INIT ══
+(function(){ loadCfgToForm(); renderTurnos(); })();
+</script>
+</body>
+</html>
