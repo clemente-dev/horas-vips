@@ -160,6 +160,22 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
 .section-title { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin:20px 0 10px; }
 .empty { text-align:center; padding:40px 20px; color:var(--muted2); font-size:13px; }
 .footer { margin-top:24px; font-size:10px; color:#1c1c1c; text-align:center; letter-spacing:0.05em; }
+
+/* Cerrar mes */
+.close-month-btn { width:100%; padding:12px; background:transparent; border:1px solid var(--red); border-radius:10px; color:var(--red); font-size:13px; font-weight:600; cursor:pointer; margin-top:10px; }
+.close-month-form { background:var(--bg2); border:1px solid var(--red); border-radius:10px; padding:16px; margin-top:10px; }
+.close-month-title { font-size:11px; color:var(--red); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px; }
+.close-month-warning { font-size:11px; color:var(--muted); background:var(--bg3); border-radius:6px; padding:8px 10px; margin:10px 0; line-height:1.5; }
+
+/* Historial */
+.hist-month { background:var(--bg2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; overflow:hidden; }
+.hist-month-header { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; cursor:pointer; user-select:none; }
+.hist-month-name { font-size:14px; font-weight:700; color:#ddd; margin-bottom:3px; }
+.hist-month-meta { font-size:11px; color:var(--muted); }
+.hist-month-net { font-size:15px; font-weight:700; color:var(--green); }
+.hist-body { padding:0 14px 14px; border-top:1px solid var(--border); }
+.hist-cfg { display:flex; gap:8px; flex-wrap:wrap; font-size:11px; color:var(--muted2); padding:8px 0 4px; }
+.hist-cfg span { background:var(--bg3); padding:3px 7px; border-radius:4px; }
 </style>
 </head>
 <body>
@@ -170,6 +186,7 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
 <div class="tabs">
   <button class="tab active" onclick="showTab('turnos',this)">Turnos</button>
   <button class="tab" onclick="showTab('resumen',this)">Resumen</button>
+  <button class="tab" onclick="showTab('historial',this)">Historial</button>
 </div>
 
 <!-- ═══ TURNOS ═══ -->
@@ -226,6 +243,33 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
   </div>
   <div id="weeks-list"></div>
   <button class="add-week-btn" onclick="addWeek()">+ Añadir semana</button>
+
+  <!-- Cerrar mes -->
+  <div id="close-month-wrap" style="margin-top:4px">
+    <button class="close-month-btn" onclick="showCloseForm()">✕ Cerrar mes y archivar</button>
+    <div class="close-month-form" id="close-form" style="display:none">
+      <div class="close-month-title">⚠ Cerrar y archivar mes</div>
+      <div class="sfield" style="margin-bottom:8px">
+        <label>Nombre del mes</label>
+        <input type="text" id="close-name" placeholder="Ej: Julio 2026">
+      </div>
+      <div class="sfield" style="margin-bottom:8px">
+        <label>Sueldo base este mes (€)</label>
+        <input type="number" id="close-salario" step="0.01" min="0">
+      </div>
+      <div class="close-month-warning" id="close-warning">Cargando...</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-primary" style="flex:1;background:var(--red);padding:10px" onclick="confirmarCierre()">Archivar mes</button>
+        <button class="btn-ghost" onclick="hideCloseForm()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HISTORIAL ═══ -->
+<div id="panel-historial" class="panel">
+  <div id="hist-list"></div>
+  <div class="empty" id="hist-empty">Aún no hay meses cerrados.<br>Usa "Cerrar mes" en la pestaña Turnos.</div>
 </div>
 
 <!-- ═══ RESUMEN ═══ -->
@@ -341,13 +385,15 @@ const SS_PCT  = 0.0648;
 const MONTHS  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const DAYS_SH = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const CONTRACT_START = new Date(2026,6,1);
-const K_W = 'vips_w2', K_C = 'vips_cfg2';
+const K_W = 'vips_w2', K_C = 'vips_cfg2', K_H = 'vips_hist1';
 
 // ══ PERSISTENCE ══
 function lW(){ try{ return JSON.parse(localStorage.getItem(K_W))||[]; }catch{ return []; } }
 function sW(d){ localStorage.setItem(K_W,JSON.stringify(d)); }
 function lC(){ try{ return JSON.parse(localStorage.getItem(K_C))||{base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245}; }catch{ return {base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245}; } }
 function sC(d){ localStorage.setItem(K_C,JSON.stringify(d)); }
+function lH(){ try{ return JSON.parse(localStorage.getItem(K_H))||[]; }catch{ return []; } }
+function sH(d){ localStorage.setItem(K_H,JSON.stringify(d)); }
 
 function onCfgChange(){
   const c={
@@ -426,7 +472,7 @@ function weekLabel(idx){
 }
 
 // ══ STATE ══
-let expandedWeeks=new Set(), addingDayTo=null, addingFranjaTo=null, selDay='', settOpen=false, editingDay=null;
+let expandedWeeks=new Set(), addingDayTo=null, addingFranjaTo=null, selDay='', settOpen=false, editingDay=null, expandedMonths=new Set();
 
 // ══ TABS ══
 function showTab(name,btn){
@@ -434,9 +480,130 @@ function showTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   btn.classList.add('active');
-  if(name==='resumen')renderResumen();
+  if(name==='resumen') renderResumen();
+  if(name==='historial') renderHistorial();
 }
 function toggleSettings(){ settOpen=!settOpen; document.getElementById('settings-body').classList.toggle('open',settOpen); }
+
+// ══ CERRAR MES ══
+const MONTHS_FULL=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function suggestMonthName(){ const n=new Date(); return `${MONTHS_FULL[n.getMonth()]} ${n.getFullYear()}`; }
+
+function showCloseForm(){
+  const weeks=lW();
+  if(weeks.length===0){alert('No hay semanas que archivar.');return;}
+  const c=lC();
+  document.getElementById('close-name').value=suggestMonthName();
+  document.getElementById('close-salario').value=c.salario;
+  const totalH=weeks.reduce((s,w)=>s+weekH(w),0);
+  const totalC=weeks.reduce((s,w)=>s+weekComp(w,c.base),0);
+  document.getElementById('close-warning').innerHTML=
+    `Se archivarán <b>${weeks.length} semanas</b> con <b>${fH(totalH)} trabajadas</b> y <b>${fH(totalC)} complementarias</b>.<br>
+    Se guardará la configuración actual del contrato junto con el mes.<br>
+    <b>Esta acción no se puede deshacer.</b>`;
+  document.getElementById('close-form').style.display='block';
+}
+function hideCloseForm(){ document.getElementById('close-form').style.display='none'; }
+
+function confirmarCierre(){
+  const name=document.getElementById('close-name').value.trim();
+  const salario=parseFloat(document.getElementById('close-salario').value)||lC().salario;
+  if(!name){alert('Escribe el nombre del mes.');return;}
+  const c={...lC(), salario};
+  const entry={ id:Date.now(), name, closedAt:new Date().toISOString(), config:c, weeks:lW() };
+  const hist=lH(); hist.push(entry); sH(hist);
+  sW([]); expandedWeeks.clear(); addingDayTo=null; editingDay=null;
+  hideCloseForm(); renderTurnos(); renderResumen();
+  alert(`✅ "${name}" archivado correctamente.`);
+}
+
+// ══ RENDER HISTORIAL ══
+function renderHistorial(){
+  const hist=lH();
+  const lista=document.getElementById('hist-list');
+  const empty=document.getElementById('hist-empty');
+  lista.innerHTML='';
+  if(hist.length===0){empty.style.display='block';return;}
+  empty.style.display='none';
+  [...hist].reverse().forEach(month=>{
+    const c=month.config;
+    const tope=topeMensual(c.base,c.pct);
+    let totalH=0,totalC=0;
+    month.weeks.forEach(w=>{totalH+=weekH(w);totalC+=weekComp(w,c.base);});
+    const compBruto=totalC*c.precio;
+    const brutomes=c.salario+compBruto;
+    const netoMes=brutomes-brutomes*SS_PCT-brutomes*(c.irpf/100);
+    const yaCobrado=totalC*c.sem;
+    const aRecibir=netoMes-yaCobrado;
+    const pct=tope>0?Math.min((totalC/tope)*100,100):0;
+    const col=pct>=100?'#ef4444':pct>=75?'#f59e0b':'#22c55e';
+    const isExp=expandedMonths.has(month.id);
+
+    let detailHtml='';
+    if(isExp){
+      const weeksHtml=month.weeks.map((w,wi)=>{
+        const tot=weekH(w),comp=weekComp(w,c.base),ord=tot-comp;
+        return `<div class="res-week">
+          <div class="res-week-label">Semana ${wi+1}</div>
+          <div class="res-week-data">
+            <span class="rw-t">Total <b>${fH(tot)}</b></span>
+            <span class="rw-o">Ord <b>${fH(ord)}</b></span>
+            <span class="rw-c">Comp <b>${fH(comp)}</b></span>
+            <span class="rw-s">Cobro sem <b>${fE(comp*c.sem)}</b></span>
+            <span class="rw-p">Pdte nómina <b>${fE(comp*(c.precio-c.sem))}</b></span>
+          </div>
+        </div>`;
+      }).join('');
+
+      detailHtml=`<div class="hist-body">
+        <div class="hist-cfg">
+          <span>${c.base}h base</span><span>${c.pct}% comp</span>
+          <span>${c.sem}€/h sem</span><span>IRPF ${c.irpf}%</span>
+          <span>Salario ${fE(c.salario)}</span>
+        </div>
+        <div class="stats-grid" style="margin-top:10px">
+          <div class="stat-card"><div class="stat-value">${fH(totalH)}</div><div class="stat-label">Total trabajado</div></div>
+          <div class="stat-card"><div class="stat-value accent">${fH(totalC)}</div><div class="stat-label">Complementarias</div></div>
+          <div class="stat-card"><div class="stat-value green">${fE(netoMes)}</div><div class="stat-label">Neto estimado</div></div>
+        </div>
+        <div class="progress-wrap" style="margin-top:12px">
+          <div class="progress-header"><span>Complementarias vs tope</span><span style="font-weight:600;color:${col}">${fH(totalC)} / ${fH(tope)} (${pct.toFixed(0)}%)</span></div>
+          <div class="progress-bg"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
+        </div>
+        <div class="payslip" style="margin-top:12px">
+          <div class="payslip-title">Desglose nómina</div>
+          <div class="payslip-row"><span class="payslip-label">Sueldo base</span><span class="payslip-val">${fE(c.salario)}</span></div>
+          <div class="payslip-row"><span class="payslip-label">Complementarias bruto</span><span class="payslip-val">${fE(compBruto)}</span></div>
+          <div class="payslip-row total"><span class="payslip-label">Total bruto</span><span class="payslip-val">${fE(brutomes)}</span></div>
+          <div class="payslip-row"><span class="payslip-label">SS (6,48%)</span><span class="payslip-val neg">-${fE(brutomes*SS_PCT)}</span></div>
+          <div class="payslip-row"><span class="payslip-label">IRPF (${c.irpf}%)</span><span class="payslip-val neg">-${fE(brutomes*(c.irpf/100))}</span></div>
+          <div class="payslip-row total"><span class="payslip-label">Total neto</span><span class="payslip-val">${fE(netoMes)}</span></div>
+          <div class="payslip-divider"></div>
+          <div class="payslip-row already"><span class="payslip-label">Ya cobrado sem.</span><span class="payslip-val">-${fE(yaCobrado)}</span></div>
+          <div class="payslip-row pending"><span class="payslip-label">Recibido en nómina</span><span class="payslip-val">${fE(Math.max(0,aRecibir))}</span></div>
+        </div>
+        <div class="section-title" style="margin-top:16px">Semana a semana</div>
+        ${weeksHtml}
+      </div>`;
+    }
+
+    const card=document.createElement('div');
+    card.className='hist-month';
+    card.innerHTML=`
+      <div class="hist-month-header" onclick="expandedMonths.has(${month.id})?expandedMonths.delete(${month.id}):expandedMonths.add(${month.id});renderHistorial()">
+        <div>
+          <div class="hist-month-name">${month.name}</div>
+          <div class="hist-month-meta">${month.weeks.length} sem · ${fH(totalH)} · ${fH(totalC)} comp</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="hist-month-net">${fE(netoMes)}</span>
+          <span style="font-size:10px;color:var(--muted2)">${isExp?'▲':'▼'}</span>
+        </div>
+      </div>
+      ${detailHtml}`;
+    lista.appendChild(card);
+  });
+}
 
 // ══ CRUD ══
 function addWeek(){ const ws=lW(),id=Date.now(); ws.push({id,days:[]}); sW(ws); expandedWeeks.add(id); addingDayTo=id; renderTurnos(); }
@@ -706,7 +873,7 @@ function renderAll(){ renderTurnos(); if(document.getElementById('panel-resumen'
 
 // ══ EXPORT / IMPORT ══
 function exportData(){
-  const data={ version:2, exportDate:new Date().toISOString(), weeks:lW(), config:lC() };
+  const data={ version:3, exportDate:new Date().toISOString(), weeks:lW(), config:lC(), history:lH() };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -730,6 +897,7 @@ function importData(){
         if(!confirm(`¿Restaurar backup del ${data.exportDate?.slice(0,10)||'fecha desconocida'}? Se sobreescribirán los datos actuales.`))return;
         sW(data.weeks);
         if(data.config)sC(data.config);
+        if(data.history)sH(data.history);
         loadCfgToForm(); renderAll();
         alert('✅ Datos restaurados correctamente.');
       }catch{ alert('❌ Error al leer el archivo. Asegúrate de que es un backup válido de esta app.'); }
@@ -737,6 +905,13 @@ function importData(){
     reader.readAsText(file);
   };
   document.body.appendChild(input); input.click(); document.body.removeChild(input);
+}
+
+// ══ RENDER ALL ══
+function renderAll(){
+  renderTurnos();
+  if(document.getElementById('panel-resumen').classList.contains('active')) renderResumen();
+  if(document.getElementById('panel-historial').classList.contains('active')) renderHistorial();
 }
 
 // ══ SERVICE WORKER ══
