@@ -20,6 +20,30 @@
   --accent: #a78bfa; --blue: #60a5fa; --green: #34d399;
   --yellow: #f59e0b; --red: #ef4444; --orange: #fb923c;
 }
+[data-theme="light"] {
+  --bg: #f4f4f5; --bg2: #ffffff; --bg3: #f0f0f2; --bg4: #e8e8ec;
+  --border: #e0e0e6; --border2: #d0d0d8;
+  --text: #111118; --muted: #888899; --muted2: #c0c0cc;
+  --accent: #7c3aed; --blue: #2563eb; --green: #059669;
+  --yellow: #d97706; --red: #dc2626; --orange: #ea580c;
+}
+[data-theme="light"] body { color: var(--text); }
+[data-theme="light"] .title { color: #111118; }
+[data-theme="light"] .week-label, [data-theme="light"] .day-name,
+[data-theme="light"] .semana-label, [data-theme="light"] .hist-month-name { color: #222230; }
+[data-theme="light"] input[type="text"],[data-theme="light"] input[type="number"],[data-theme="light"] input[type="time"] { background:#f8f8fc; border-color:var(--border2); color:#111118; }
+[data-theme="light"] input::placeholder { color:#aaa; }
+[data-theme="light"] .tab { color: #999; }
+[data-theme="light"] .stat-value { color: #111118; }
+[data-theme="light"] .week-label { color: #222; }
+[data-theme="light"] .payslip-label { color: #666; }
+[data-theme="light"] .payslip-row.total .payslip-label { color: #222; }
+[data-theme="light"] .franja-range { color: #666; }
+[data-theme="light"] .res-week-label, [data-theme="light"] .tc-title { color: #222; }
+
+/* Theme toggle */
+.theme-toggle { position:absolute; right:0; top:0; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:16px; cursor:pointer; line-height:1; }
+.header-wrap { position:relative; margin-bottom:18px; padding-right:48px; }
 body { background:var(--bg); color:var(--text); font-family:'Inter','Segoe UI',system-ui,sans-serif; min-height:100vh; padding:20px 14px 60px; max-width:580px; margin:0 auto; -webkit-text-size-adjust:100%; }
 
 /* Header */
@@ -180,8 +204,11 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
 </head>
 <body>
 
-<div class="eyebrow">VIPS · Sigla S.A.</div>
-<div class="title">Registro de horas</div>
+<div class="header-wrap">
+  <div class="eyebrow">VIPS · Sigla S.A.</div>
+  <div class="title">Registro de horas</div>
+  <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+</div>
 
 <div class="tabs">
   <button class="tab active" onclick="showTab('turnos',this)">Turnos</button>
@@ -433,24 +460,61 @@ function fH(h){ const r=Math.round(h*10)/10; return r%1===0?r+'h':r.toFixed(1).r
 function fE(n){ return n.toFixed(2).replace('.',',')+('€'); }
 function fEn(n){ return (n<0?'-':'')+Math.abs(n).toFixed(2).replace('.',',')+('€'); }
 
+function totalDescMins(f){
+  if(f.descansos&&Array.isArray(f.descansos)) return f.descansos.reduce((s,d)=>s+(d.mins||d),0);
+  if(f.descanso===true) return 30; // backward compat
+  return 0;
+}
+
 function franjaH(f){
   const s=tM(f.start),e=tM(f.end);
   if(s===null||e===null)return 0;
   let m=e-s; if(m<=0)m+=1440;
-  if(f.descanso)m-=30;
+  m-=totalDescMins(f);
   return Math.max(0,m/60);
 }
 
-function prevH(start,end,desc){
+function prevHFull(start,end,descMinutes){
   const s=tM(start),e=tM(end);
   if(s===null||e===null||!start||!end)return null;
   let m=e-s; if(m<=0)m+=1440;
-  if(desc)m-=30;
+  m-=descMinutes;
   return Math.max(0,m/60);
 }
 
 function dayH(day){ return day.franjas.reduce((s,f)=>s+franjaH(f),0); }
 function weekH(week){ return week.days.reduce((s,d)=>s+dayH(d),0); }
+
+// ══ PENDING DESCANSOS STATE ══
+let pendingDesc={};
+function getPD(key){ return pendingDesc[key]||[]; }
+function addPD(key){ pendingDesc[key]=[...getPD(key),{mins:30}]; renderDescList(key); upPrevByKey(key); }
+function removePD(key,idx){ pendingDesc[key]=getPD(key).filter((_,i)=>i!==idx); renderDescList(key); upPrevByKey(key); }
+function updatePDMins(key,idx,val){ const list=getPD(key); if(list[idx])list[idx].mins=Math.max(1,parseFloat(val)||30); upPrevByKey(key); }
+function clearPD(key){ delete pendingDesc[key]; }
+
+function renderDescList(key){
+  const el=document.getElementById('dl-'+key); if(!el)return;
+  const list=getPD(key);
+  el.innerHTML=list.length===0?'':`<div style="margin-top:6px">`+list.map((d,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+      <input type="number" value="${d.mins}" min="1" max="120" step="5" style="width:64px;flex:none;padding:7px 8px;font-size:12px"
+        oninput="updatePDMins('${key}',${i},this.value)">
+      <span style="font-size:11px;color:var(--muted)">min descanso</span>
+      <button class="btn-del" onclick="removePD('${key}',${i})">✕</button>
+    </div>`).join('')+'</div>';
+}
+
+function upPrevByKey(key){
+  // key is either 'nd{wid}' (new day) or 'f{wid}_{did}' (new franja)
+  let sid,eid,pid;
+  if(key.startsWith('nd')){ const wid=key.slice(2); sid=`ns-${wid}`; eid=`ne-${wid}`; pid=`np-${wid}`; }
+  else { const parts=key.slice(1).split('_'); sid=`fs-${parts[0]}-${parts[1]}`; eid=`fe-${parts[0]}-${parts[1]}`; pid=`fp-${parts[0]}-${parts[1]}`; }
+  const el=document.getElementById(pid); if(!el)return;
+  const totalMins=getPD(key).reduce((s,d)=>s+d.mins,0);
+  const h=prevHFull(document.getElementById(sid)?.value,document.getElementById(eid)?.value,totalMins);
+  el.textContent=h!==null?fH(h):'–';
+}
 function weekComp(week,base){ return Math.max(0,weekH(week)-base); }
 function topeMensual(base,pct){ return base*3.75*(pct/100); }
 
@@ -515,6 +579,16 @@ function confirmarCierre(){
   sW([]); expandedWeeks.clear(); addingDayTo=null; editingDay=null;
   hideCloseForm(); renderTurnos(); renderResumen();
   alert(`✅ "${name}" archivado correctamente.`);
+}
+
+function deleteMonth(id){
+  const hist=lH();
+  const month=hist.find(m=>m.id===id);
+  if(!month)return;
+  if(!confirm(`¿Eliminar "${month.name}" del historial? Esta acción no se puede deshacer.`))return;
+  sH(hist.filter(m=>m.id!==id));
+  expandedMonths.delete(id);
+  renderHistorial();
 }
 
 // ══ RENDER HISTORIAL ══
@@ -597,6 +671,7 @@ function renderHistorial(){
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="hist-month-net">${fE(netoMes)}</span>
+          <button class="btn-icon" style="opacity:0.3;font-size:13px" onclick="event.stopPropagation();deleteMonth(${month.id})">🗑</button>
           <span style="font-size:10px;color:var(--muted2)">${isExp?'▲':'▼'}</span>
         </div>
       </div>
@@ -614,12 +689,14 @@ function addDay(wid){
   const dname=document.getElementById('nd-'+wid)?.value?.trim()||selDay;
   const start=document.getElementById('ns-'+wid)?.value;
   const end=document.getElementById('ne-'+wid)?.value;
-  const desc=document.getElementById('nd2-'+wid)?.checked||false;
   if(!dname){alert('Escribe o selecciona el día.');return;}
   if(!start||!end){alert('Introduce hora de inicio y fin.');return;}
+  const key='nd'+wid;
+  const descansos=[...getPD(key)];
+  clearPD(key);
   const ws=lW(),w=ws.find(x=>x.id===wid);
   if(!w)return;
-  w.days.push({id:Date.now(),name:dname,franjas:[{start,end,descanso:desc}]});
+  w.days.push({id:Date.now(),name:dname,franjas:[{start,end,descansos}]});
   sW(ws); addingDayTo=null; selDay=''; renderTurnos();
 }
 function deleteDay(wid,did){ const ws=lW(),w=ws.find(x=>x.id===wid); if(!w)return; w.days=w.days.filter(d=>d.id!==did); sW(ws); renderTurnos(); }
@@ -627,11 +704,13 @@ function deleteDay(wid,did){ const ws=lW(),w=ws.find(x=>x.id===wid); if(!w)retur
 function addFranja(wid,did){
   const start=document.getElementById(`fs-${wid}-${did}`)?.value;
   const end=document.getElementById(`fe-${wid}-${did}`)?.value;
-  const desc=document.getElementById(`fd-${wid}-${did}`)?.checked||false;
   if(!start||!end){alert('Introduce hora de inicio y fin.');return;}
+  const key=`f${wid}_${did}`;
+  const descansos=[...getPD(key)];
+  clearPD(key);
   const ws=lW(),day=ws.find(w=>w.id===wid)?.days?.find(d=>d.id===did);
   if(!day)return;
-  day.franjas.push({start,end,descanso:desc});
+  day.franjas.push({start,end,descansos});
   sW(ws); addingFranjaTo=null; renderTurnos();
 }
 function deleteFranja(wid,did,fi){
@@ -653,8 +732,12 @@ function saveEditDay(wid,did){
   day.franjas.forEach((f,fi)=>{
     const s=document.getElementById(`es-${wid}-${did}-${fi}`)?.value;
     const e=document.getElementById(`ee-${wid}-${did}-${fi}`)?.value;
-    const d=document.getElementById(`ed-${wid}-${did}-${fi}`)?.checked||false;
-    if(s)f.start=s; if(e)f.end=e; f.descanso=d;
+    if(s)f.start=s; if(e)f.end=e;
+    // Update descansos from edit inputs
+    const key=`ed${wid}_${did}_${fi}`;
+    f.descansos=[...getPD(key)];
+    delete f.descanso; // remove old format
+    clearPD(key);
   });
   sW(ws); editingDay=null; renderTurnos();
 }
@@ -667,9 +750,10 @@ function deleteEditFranja(wid,did,fi){
 }
 
 // ══ LIVE PREVIEW ══
-function upPrev(pid,sid,eid,did){
+function upPrev(pid,sid,eid,key){
   const el=document.getElementById(pid); if(!el)return;
-  const h=prevH(document.getElementById(sid)?.value,document.getElementById(eid)?.value,document.getElementById(did)?.checked||false);
+  const totalMins=getPD(key).reduce((s,d)=>s+d.mins,0);
+  const h=prevHFull(document.getElementById(sid)?.value,document.getElementById(eid)?.value,totalMins);
   el.textContent=h!==null?fH(h):'–';
 }
 
@@ -689,48 +773,60 @@ function renderTurnos(){
       week.days.forEach(day=>{
         const dtot=dayH(day);
         const addF=addingFranjaTo&&addingFranjaTo.wid===week.id&&addingFranjaTo.did===day.id;
-        const franjasHtml=day.franjas.map((f,fi)=>`
-          <div class="franja-item">
-            <span class="franja-range">${f.start}–${f.end}${f.descanso?' <span class="franja-break">-30\' desc.</span>':''}</span>
+        const franjasHtml=day.franjas.map((f,fi)=>{
+          const dm=totalDescMins(f);
+          const descTxt=dm>0?` <span class="franja-break">-${dm}' desc.</span>`:'';
+          return `<div class="franja-item">
+            <span class="franja-range">${f.start}–${f.end}${descTxt}</span>
             <span class="franja-h">${fH(franjaH(f))}</span>
             <button class="btn-del" onclick="deleteFranja(${week.id},${day.id},${fi})">✕</button>
-          </div>`).join('');
+          </div>`;
+        }).join('');
+        const fKey=`f${week.id}_${day.id}`;
         const addFForm=addF?`
           <div class="add-franja-form">
             <span class="add-franja-label">+ Nueva franja</span>
             <div class="franja-inputs">
-              <div class="time-wrap"><label>Inicio</label><input type="time" id="fs-${week.id}-${day.id}" oninput="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','fd-${week.id}-${day.id}')"></div>
-              <div class="time-wrap"><label>Fin</label><input type="time" id="fe-${week.id}-${day.id}" oninput="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','fd-${week.id}-${day.id}')"></div>
+              <div class="time-wrap"><label>Inicio</label><input type="time" id="fs-${week.id}-${day.id}" oninput="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','${fKey}')"></div>
+              <div class="time-wrap"><label>Fin</label><input type="time" id="fe-${week.id}-${day.id}" oninput="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','${fKey}')"></div>
               <span class="hours-preview" id="fp-${week.id}-${day.id}">–</span>
             </div>
-            <div class="franja-bottom">
-              <div class="toggle-wrap">
-                <label class="toggle"><input type="checkbox" id="fd-${week.id}-${day.id}" onchange="upPrev('fp-${week.id}-${day.id}','fs-${week.id}-${day.id}','fe-${week.id}-${day.id}','fd-${week.id}-${day.id}')"><span class="toggle-track"></span></label>
-                <span class="toggle-label">Descontar descanso (30 min)</span>
-              </div>
+            <div id="dl-${fKey}"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+              <button class="btn-tiny" onclick="addPD('${fKey}')">+ Descanso</button>
               <div style="display:flex;gap:6px">
                 <button class="btn-tiny" onclick="addFranja(${week.id},${day.id})">Añadir</button>
-                <button class="btn-ghost" style="padding:6px 10px;font-size:12px" onclick="addingFranjaTo=null;renderTurnos()">✕</button>
+                <button class="btn-ghost" style="padding:6px 10px;font-size:12px" onclick="clearPD('${fKey}');addingFranjaTo=null;renderTurnos()">✕</button>
               </div>
             </div>
           </div>`:'';
         const addFBtn=!addF?`<button class="btn-tiny" style="margin-top:8px" onclick="addingFranjaTo={wid:${week.id},did:${day.id}};renderTurnos()">+ Franja</button>`:'';
         const isEditing=editingDay&&editingDay.wid===week.id&&editingDay.did===day.id;
         if(isEditing){
-          const franjasEditHtml=day.franjas.map((f,fi)=>`
-            <div style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;margin-bottom:6px">
+          const franjasEditHtml=day.franjas.map((f,fi)=>{
+            const eKey=`ed${week.id}_${day.id}_${fi}`;
+            // Init edit descansos from saved data if not already in state
+            if(!pendingDesc[eKey]) pendingDesc[eKey]=[...(f.descansos||( f.descanso?[{mins:30}]:[] ))];
+            const dm=getPD(eKey).reduce((s,d)=>s+d.mins,0);
+            const editDescHtml=getPD(eKey).map((d,i)=>`
+              <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+                <input type="number" value="${d.mins}" min="1" max="120" step="5" style="width:64px;flex:none;padding:7px 8px;font-size:12px"
+                  oninput="updatePDMins('${eKey}',${i},this.value)">
+                <span style="font-size:11px;color:var(--muted)">min descanso</span>
+                <button class="btn-del" onclick="removePD('${eKey}',${i})">✕</button>
+              </div>`).join('');
+            return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;margin-bottom:6px">
               <div class="franja-inputs">
                 <div class="time-wrap"><label>Inicio</label><input type="time" id="es-${week.id}-${day.id}-${fi}" value="${f.start}"></div>
                 <div class="time-wrap"><label>Fin</label><input type="time" id="ee-${week.id}-${day.id}-${fi}" value="${f.end}"></div>
               </div>
+              <div id="dl-${eKey}">${editDescHtml?'<div style="margin-top:6px">'+editDescHtml+'</div>':''}</div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                <div class="toggle-wrap">
-                  <label class="toggle"><input type="checkbox" id="ed-${week.id}-${day.id}-${fi}" ${f.descanso?'checked':''}><span class="toggle-track"></span></label>
-                  <span class="toggle-label">Descontar descanso (30 min)</span>
-                </div>
+                <button class="btn-tiny" onclick="addPD('${eKey}');renderTurnos()">+ Descanso</button>
                 <button class="btn-del" onclick="deleteEditFranja(${week.id},${day.id},${fi})" title="Eliminar franja">🗑</button>
               </div>
-            </div>`).join('');
+            </div>`;
+          }).join('');
           daysHtml+=`<div class="day-block">
             <div style="margin-bottom:10px">
               <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:5px">Nombre del día</label>
@@ -754,25 +850,24 @@ function renderTurnos(){
         }
       });
       const addD2=addingDayTo===week.id;
+      const ndKey=`nd${week.id}`;
       const addDayHtml=addD2?`
         <div class="add-day-form">
           <span class="add-day-label">+ Añadir día</span>
           <div class="day-btns">${DAYS_SH.map(d=>`<button class="day-btn${selDay===d?' sel':''}" onclick="selDay='${d}';document.getElementById('nd-${week.id}').value='${d}';renderTurnos()">${d}</button>`).join('')}</div>
           <input type="text" id="nd-${week.id}" placeholder="Nombre del día" value="${selDay}" style="margin-bottom:10px">
           <div class="franja-inputs">
-            <div class="time-wrap"><label>Inicio</label><input type="time" id="ns-${week.id}" oninput="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','nd2-${week.id}')"></div>
-            <div class="time-wrap"><label>Fin</label><input type="time" id="ne-${week.id}" oninput="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','nd2-${week.id}')"></div>
+            <div class="time-wrap"><label>Inicio</label><input type="time" id="ns-${week.id}" oninput="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','${ndKey}')"></div>
+            <div class="time-wrap"><label>Fin</label><input type="time" id="ne-${week.id}" oninput="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','${ndKey}')"></div>
             <span class="hours-preview" id="np-${week.id}">–</span>
           </div>
-          <div class="franja-bottom">
-            <div class="toggle-wrap">
-              <label class="toggle"><input type="checkbox" id="nd2-${week.id}" onchange="upPrev('np-${week.id}','ns-${week.id}','ne-${week.id}','nd2-${week.id}')"><span class="toggle-track"></span></label>
-              <span class="toggle-label">Descontar descanso (30 min)</span>
-            </div>
+          <div id="dl-${ndKey}"></div>
+          <div style="margin-top:8px">
+            <button class="btn-tiny" onclick="addPD('${ndKey}')">+ Descanso</button>
           </div>
           <div class="add-day-bottom">
             <button class="btn-primary" style="flex:1" onclick="addDay(${week.id})">Guardar día</button>
-            <button class="btn-ghost" onclick="addingDayTo=null;selDay='';renderTurnos()">Cancelar</button>
+            <button class="btn-ghost" onclick="clearPD('${ndKey}');addingDayTo=null;selDay='';renderTurnos()">Cancelar</button>
           </div>
         </div>`:`<button class="btn-tiny" style="width:100%;margin-top:4px;padding:9px" onclick="addingDayTo=${week.id};addingFranjaTo=null;selDay='';renderTurnos()">+ Añadir día</button>`;
       bodyHtml=`<div class="week-sep"></div>${daysHtml}${addDayHtml}`;
@@ -921,8 +1016,25 @@ if('serviceWorker' in navigator){
   });
 }
 
+// ══ THEME ══
+const K_THEME = 'vips_theme';
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-btn').textContent = theme === 'light' ? '🌙' : '☀️';
+}
+function toggleTheme(){
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(K_THEME, next);
+  applyTheme(next);
+}
+
 // ══ INIT ══
-(function(){ loadCfgToForm(); renderTurnos(); })();
+(function(){
+  applyTheme(localStorage.getItem(K_THEME) || 'dark');
+  loadCfgToForm();
+  renderTurnos();
+})();
 </script>
 </body>
 </html>
