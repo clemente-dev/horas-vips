@@ -31,7 +31,7 @@
 [data-theme="light"] .title { color: #111118; }
 [data-theme="light"] .week-label, [data-theme="light"] .day-name,
 [data-theme="light"] .semana-label, [data-theme="light"] .hist-month-name { color: #222230; }
-[data-theme="light"] input[type="text"],[data-theme="light"] input[type="number"],[data-theme="light"] input[type="time"] { background:#f8f8fc; border-color:var(--border2); color:#111118; }
+[data-theme="light"] input[type="text"],[data-theme="light"] input[type="number"],[data-theme="light"] input[type="time"],[data-theme="light"] input[type="date"] { background:#f8f8fc; border-color:var(--border2); color:#111118; }
 [data-theme="light"] input::placeholder { color:#aaa; }
 [data-theme="light"] .tab { color: #999; }
 [data-theme="light"] .stat-value { color: #111118; }
@@ -71,10 +71,12 @@ body { background:var(--bg); color:var(--text); font-family:'Inter','Segoe UI',s
 .tope-lbl { font-size:9px; color:var(--muted); display:block; margin-bottom:2px; text-transform:uppercase; letter-spacing:0.1em; }
 
 /* Inputs */
-input[type="text"],input[type="number"],input[type="time"] { width:100%; background:#252525; border:1.5px solid var(--border2); border-radius:7px; color:#e8e8e8; padding:10px 11px; font-size:13px; outline:none; -webkit-appearance:none; appearance:none; }
+input[type="text"],input[type="number"],input[type="time"],input[type="date"] { width:100%; background:#252525; border:1.5px solid var(--border2); border-radius:7px; color:#e8e8e8; padding:10px 11px; font-size:13px; outline:none; -webkit-appearance:none; appearance:none; }
 input::placeholder { color:#4a4a4a; }
 input:focus { border-color:var(--accent); background:#2a2a2a; }
-input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.5); cursor:pointer; }
+[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.3); }
 
 /* Toggle */
 .toggle-wrap { display:flex; align-items:center; gap:7px; }
@@ -205,7 +207,6 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
 <body>
 
 <div class="header-wrap">
-  <div class="eyebrow">VIPS · Sigla S.A.</div>
   <div class="title">Registro de horas</div>
   <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
 </div>
@@ -257,6 +258,12 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
         <div class="sfield">
           <label>€/h total complementarias</label>
           <input type="number" id="cfg-precio" value="9.6245" min="0" step="0.0001" oninput="onCfgChange()">
+        </div>
+      </div>
+      <div class="settings-grid" style="margin-top:8px">
+        <div class="sfield">
+          <label>Fecha inicio contrato</label>
+          <input type="date" id="cfg-startdate" oninput="onCfgChange()" style="color-scheme:dark">
         </div>
       </div>
       <div class="sdivider"></div>
@@ -404,7 +411,7 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
 
 </div>
 
-<div class="footer">Contrato 00167694 · 01.07.2026 – 04.10.2026</div>
+<div class="footer"></div>
 
 <script>
 // ══ CONSTANTS ══
@@ -417,7 +424,7 @@ const K_W = 'vips_w2', K_C = 'vips_cfg2', K_H = 'vips_hist1';
 // ══ PERSISTENCE ══
 function lW(){ try{ return JSON.parse(localStorage.getItem(K_W))||[]; }catch{ return []; } }
 function sW(d){ localStorage.setItem(K_W,JSON.stringify(d)); }
-function lC(){ try{ return JSON.parse(localStorage.getItem(K_C))||{base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245}; }catch{ return {base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245}; } }
+function lC(){ try{ return JSON.parse(localStorage.getItem(K_C))||{base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245,startDate:'2026-07-01'}; }catch{ return {base:16,pct:60,sem:6,irpf:0,salario:577.47,precio:9.6245,startDate:'2026-07-01'}; } }
 function sC(d){ localStorage.setItem(K_C,JSON.stringify(d)); }
 function lH(){ try{ return JSON.parse(localStorage.getItem(K_H))||[]; }catch{ return []; } }
 function sH(d){ localStorage.setItem(K_H,JSON.stringify(d)); }
@@ -429,7 +436,8 @@ function onCfgChange(){
     sem:    parseFloat(document.getElementById('cfg-sem').value)||6,
     irpf:   parseFloat(document.getElementById('cfg-irpf').value)||0,
     salario:parseFloat(document.getElementById('cfg-salario').value)||577.47,
-    precio: parseFloat(document.getElementById('cfg-precio').value)||9.6245
+    precio: parseFloat(document.getElementById('cfg-precio').value)||9.6245,
+    startDate: document.getElementById('cfg-startdate').value||'2026-07-01'
   };
   sC(c);
   updateCfgDisplay(c);
@@ -451,6 +459,7 @@ function loadCfgToForm(){
   document.getElementById('cfg-irpf').value    = c.irpf;
   document.getElementById('cfg-salario').value = c.salario;
   document.getElementById('cfg-precio').value  = c.precio;
+  document.getElementById('cfg-startdate').value = c.startDate||'2026-07-01';
   updateCfgDisplay(c);
 }
 
@@ -521,8 +530,9 @@ function topeMensual(base,pct){ return base*3.75*(pct/100); }
 // ══ WEEK LABELS ══
 function addD(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function fDate(d){ return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
+function getContractStart(){ const c=lC(); return c.startDate?new Date(c.startDate+'T00:00:00'):new Date(2026,6,1); }
 function weekRange(idx){
-  const s=new Date(CONTRACT_START), dow=s.getDay();
+  const s=new Date(getContractStart()), dow=s.getDay();
   if(idx===0){ return {s,e:addD(s,dow===0?0:7-dow)}; }
   const w2s=addD(s,dow===0?1:8-dow);
   const ws=addD(w2s,(idx-1)*7);
@@ -626,6 +636,7 @@ function renderHistorial(){
             <span class="rw-s">Cobro sem <b>${fE(comp*c.sem)}</b></span>
             <span class="rw-p">Pdte nómina <b>${fE(comp*(c.precio-c.sem))}</b></span>
           </div>
+          ${w.comment?`<div style="margin-top:6px;font-size:11px;color:var(--muted);background:var(--bg3);border-radius:5px;padding:6px 8px">💬 ${w.comment}</div>`:''}
         </div>`;
       }).join('');
 
@@ -681,8 +692,15 @@ function renderHistorial(){
 }
 
 // ══ CRUD ══
-function addWeek(){ const ws=lW(),id=Date.now(); ws.push({id,days:[]}); sW(ws); expandedWeeks.add(id); addingDayTo=id; renderTurnos(); }
+function addWeek(){ const ws=lW(),id=Date.now(); ws.push({id,days:[],comment:''}); sW(ws); expandedWeeks.add(id); addingDayTo=id; renderTurnos(); }
 function deleteWeek(id){ if(!confirm('¿Eliminar esta semana?'))return; sW(lW().filter(w=>w.id!==id)); expandedWeeks.delete(id); renderTurnos(); }
+let openComments=new Set();
+function toggleComment(id){ openComments.has(id)?openComments.delete(id):openComments.add(id); renderTurnos(); }
+function saveComment(id){
+  const val=document.getElementById('cmt-'+id)?.value||'';
+  const ws=lW(), w=ws.find(x=>x.id===id); if(!w)return;
+  w.comment=val; sW(ws);
+}
 function toggleWeek(id){ expandedWeeks.has(id)?expandedWeeks.delete(id):expandedWeeks.add(id); renderTurnos(); }
 
 function addDay(wid){
@@ -872,6 +890,8 @@ function renderTurnos(){
         </div>`:`<button class="btn-tiny" style="width:100%;margin-top:4px;padding:9px" onclick="addingDayTo=${week.id};addingFranjaTo=null;selDay='';renderTurnos()">+ Añadir día</button>`;
       bodyHtml=`<div class="week-sep"></div>${daysHtml}${addDayHtml}`;
     }
+    const hasComment=!!(week.comment&&week.comment.trim());
+    const cmtOpen=openComments.has(week.id);
     card.innerHTML=`
       <div class="week-header" onclick="toggleWeek(${week.id})">
         <div class="week-header-left">
@@ -885,10 +905,15 @@ function renderTurnos(){
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:4px">
+          <button class="btn-icon" style="opacity:${hasComment?'0.8':'0.25'};font-size:15px" onclick="event.stopPropagation();toggleComment(${week.id})" title="Comentarios">💬</button>
           <button class="btn-icon" onclick="event.stopPropagation();deleteWeek(${week.id})" style="opacity:0.25">🗑</button>
           <span class="week-chevron">${isExp?'▲':'▼'}</span>
         </div>
       </div>
+      ${cmtOpen?`<div style="padding:0 14px 10px;border-bottom:1px solid var(--border)">
+        <textarea id="cmt-${week.id}" placeholder="Añade un comentario para esta semana..." oninput="saveComment(${week.id})"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);padding:9px 11px;font-size:12px;resize:vertical;min-height:70px;outline:none;font-family:inherit">${week.comment||''}</textarea>
+      </div>`:''}
       ${isExp?`<div class="week-body">${bodyHtml}</div>`:''}`;
     list.appendChild(card);
   });
@@ -958,7 +983,8 @@ function renderResumen(){
         <span class="rw-c">Comp <b>${fH(comp)}</b></span>
         <span class="rw-s">Cobro sem <b>${fE(sem)}</b></span>
         <span class="rw-p">Pdte nómina <b>${fE(pnd)}</b></span>
-      </div>`;
+      </div>
+      ${w.comment?`<div style="margin-top:6px;font-size:11px;color:var(--muted);background:var(--bg3);border-radius:5px;padding:6px 8px">💬 ${w.comment}</div>`:''}`;
     rw.appendChild(div);
   });
 }
