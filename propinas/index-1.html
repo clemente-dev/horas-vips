@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Recuento Propinas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1115">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Propinas">
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --accent: #22c55e;
+    --accent-dim: #16a34a;
+    --text: #f4f4f5;
+    --text-dim: #9ca3af;
+    --border: #2a2d35;
+    --danger: #ef4444;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+    padding-bottom: 100px;
+  }
+  h1 {
+    font-size: 20px;
+    text-align: center;
+    margin: 8px 0 4px;
+    font-weight: 600;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .total-card {
+    background: linear-gradient(135deg, #16351f, #1a1d24);
+    border: 1px solid var(--accent-dim);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .total-label {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .total-value {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+  .section-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 16px 4px 8px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .coin-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .coin-value {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .coin-subtotal {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .coin-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn-minus {
+    background: #2a2d35;
+    color: var(--text);
+  }
+  .btn-plus {
+    background: var(--accent);
+    color: #0f1115;
+  }
+  .btn:active {
+    transform: scale(0.92);
+  }
+  .count {
+    min-width: 28px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+  .count:active {
+    background: rgba(255,255,255,0.08);
+  }
+  .reset-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
+  }
+  .reset-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .reset-btn:active {
+    background: rgba(239,68,68,0.1);
+  }
+</style>
+</head>
+<body>
+
+<h1>💶 Recuento de Propinas</h1>
+<div class="subtitle">+/− suma o resta 1 · toca el número para añadir varias de golpe</div>
+
+<div class="total-card">
+  <div class="total-label">Total</div>
+  <div class="total-value" id="total">0,00 €</div>
+</div>
+
+<div class="section-label">Monedas</div>
+<div class="grid" id="coins-grid"></div>
+
+<div class="section-label">Billetes</div>
+<div class="grid" id="bills-grid"></div>
+
+<div class="reset-bar">
+  <button class="reset-btn" onclick="resetAll()">Reiniciar recuento</button>
+</div>
+
+<script>
+  const denominations = [
+    { value: 0.10, label: "10c", type: "coin" },
+    { value: 0.20, label: "20c", type: "coin" },
+    { value: 0.50, label: "50c", type: "coin" },
+    { value: 1,    label: "1 €", type: "coin" },
+    { value: 2,    label: "2 €", type: "coin" },
+    { value: 5,    label: "5 €", type: "bill" },
+    { value: 10,   label: "10 €", type: "bill" },
+    { value: 20,   label: "20 €", type: "bill" },
+  ];
+
+  const STORAGE_KEY = "propinas-recuento";
+  let counts = {};
+
+  function loadCounts() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      counts = saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      counts = {};
+    }
+    denominations.forEach(d => {
+      if (!(d.value in counts)) counts[d.value] = 0;
+    });
+  }
+
+  function saveCounts() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(counts));
+    } catch (e) {}
+  }
+
+  function formatEuros(n) {
+    return n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+  }
+
+  function change(value, delta) {
+    const newCount = (counts[value] || 0) + delta;
+    counts[value] = Math.max(0, newCount);
+    saveCounts();
+    render();
+  }
+
+  function addBulk(value, label) {
+    const input = window.prompt(`¿Cuántas unidades de ${label} quieres añadir? (puedes poner un número negativo para restar)`, "");
+    if (input === null) return;
+    const n = parseInt(input.replace(",", ".").trim(), 10);
+    if (isNaN(n)) {
+      alert("Introduce un número válido.");
+      return;
+    }
+    const newCount = (counts[value] || 0) + n;
+    counts[value] = Math.max(0, newCount);
+    saveCounts();
+    render();
+  }
+
+  function resetAll() {
+    if (confirm("¿Seguro que quieres reiniciar el recuento a cero?")) {
+      denominations.forEach(d => counts[d.value] = 0);
+      saveCounts();
+      render();
+    }
+  }
+
+  function render() {
+    let total = 0;
+    const coinsGrid = document.getElementById("coins-grid");
+    const billsGrid = document.getElementById("bills-grid");
+    coinsGrid.innerHTML = "";
+    billsGrid.innerHTML = "";
+
+    denominations.forEach(d => {
+      const count = counts[d.value] || 0;
+      const subtotal = count * d.value;
+      total += subtotal;
+
+      const card = document.createElement("div");
+      card.className = "coin-card";
+      card.innerHTML = `
+        <div class="coin-value">${d.label}</div>
+        <div class="coin-subtotal">${formatEuros(subtotal)}</div>
+        <div class="coin-controls">
+          <button class="btn btn-minus" onclick="change(${d.value}, -1)">−</button>
+          <div class="count" onclick="addBulk(${d.value}, '${d.label}')">${count}</div>
+          <button class="btn btn-plus" onclick="change(${d.value}, 1)">+</button>
+        </div>
+      `;
+      (d.type === "coin" ? coinsGrid : billsGrid).appendChild(card);
+    });
+
+    document.getElementById("total").textContent = formatEuros(total);
+  }
+
+  loadCounts();
+  render();
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
